@@ -32,6 +32,9 @@ public class NeoContractIco: SmartContract
 		[DisplayName("refund")]
 		public static event MyAction<byte[], BigInteger> Refund;
 
+		[DisplayName("exchange")]
+		public static event MyAction<BigInteger, string> Exchange;
+
 		public static Object Main(string operation, params object[] args)
 		{
 			if (Runtime.Trigger == TriggerType.Verification)
