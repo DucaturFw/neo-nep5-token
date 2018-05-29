@@ -10,7 +10,7 @@ public class NeoContractIco: SmartContract
 	//Token Settings
 		public static string Name() => "Ducatur";
 		public static string Symbol() => "DUC";
-		// public static readonly byte[] Owner = "AKQ8cCUoE99ncnRRbaYPit3pV3g58A6FJk".ToScriptHash();
+		public static readonly byte[] Owner = "AKQ8cCUoE99ncnRRbaYPit3pV3g58A6FJk".ToScriptHash();
 		public static byte Decimals() => 8;
 		private const ulong factor = 100000000; //decided by Decimals()
 		private const ulong neo_decimals = 100000000;
@@ -29,7 +29,7 @@ public class NeoContractIco: SmartContract
 		public static event MyAction<byte[], byte[], BigInteger> Transferred;
 
 		[DisplayName("exchange")]
-		public static event MyAction<BigInteger, byte[], byte[]> Exchanged;
+		public static event MyAction<byte[], BigInteger, byte[], byte[]> Exchanged; // from, tokenAmount, blockchainName, receiver
 		
 		[DisplayName("mint")]
 		public static event MyAction<byte[], BigInteger, byte[], byte[]> Minted; //(toAddress, tokenAmount, fromBlockchain, fromTxId)
@@ -51,15 +51,20 @@ public class NeoContractIco: SmartContract
 			}
 			else if (Runtime.Trigger == TriggerType.Application)
 			{
+				Runtime.Log(operation);
 				if (operation == "deploy") return Deploy();
 				if (operation == "totalSupply") return TotalSupply();
 				if (operation == "name") return Name();
 				if (operation == "symbol") return Symbol();
 				if (operation == "decimals") return Decimals();
+				if (operation == "owner") return GetOwner();
 				if (operation == "transfer")
 				{
 					if (args.Length != 3)
+					{
+						Runtime.Log("insufficient arguments length! "+args.Length);
 						return false;
+					}
 					
 					byte[] from = (byte[])args[0];
 					byte[] to = (byte[])args[1];
@@ -69,7 +74,10 @@ public class NeoContractIco: SmartContract
 				if (operation == "balanceOf")
 				{
 					if (args.Length != 1)
+					{
+						Runtime.Log("insufficient arguments length! "+args.Length);
 						return 0;
+					}
 					
 					byte[] account = (byte[])args[0];
 					return BalanceOf(account);
@@ -77,19 +85,26 @@ public class NeoContractIco: SmartContract
 				
 				if (operation == "exchange")
 				{
-					if (args.Length != 3)
+					if (args.Length != 4)
+					{
+						Runtime.Log("insufficient arguments length! "+args.Length);
 						return false;
+					}
 					
-					BigInteger tokenAmount = (BigInteger)args[0];
-					byte[] blockchainName = (byte[])args[1];
-					byte[] receiver = (byte[])args[2];
+					byte[] from = (byte[])args[0];
+					BigInteger tokenAmount = (BigInteger)args[1];
+					byte[] blockchainName = (byte[])args[2];
+					byte[] receiver = (byte[])args[3];
 
-					return Exchange(tokenAmount, blockchainName, receiver);
+					return Exchange(from, tokenAmount, blockchainName, receiver);
 				}
 				if (operation == "mintTokens")
 				{
 					if (args.Length != 4)
+					{
+						Runtime.Log("insufficient arguments length! "+args.Length);
 						return false;
+					}
 					
 					byte[] toAddress = (byte[])args[0];
 					BigInteger tokenAmount = (BigInteger)args[1];
@@ -98,34 +113,41 @@ public class NeoContractIco: SmartContract
 					
 					return MintTokens(toAddress, tokenAmount, fromBlockchain, fromTxId);
 				}
+				Runtime.Log("operation not found: "+operation);
+				return false;
 			}
+			Runtime.Log("unknown Main() behaviour! "+operation);
 			return false;
 		}
 
 		// initialization parameters, only once
-		// 初始化参数
 		public static bool Deploy()
 		{
+			Runtime.Log("deploying contract...");
 			byte[] total_supply = Storage.Get(Storage.CurrentContext, TOTAL_SUPPLY_KEY);
-			if (total_supply.Length != 0) return false;
-			Storage.Put(Storage.CurrentContext, "owner", GetSender());
+			// Runtime.Log($"curent total_supply[{total_supply.Length}]: {total_supply.AsBigInteger()}");
+			if (total_supply.Length != 0)
+			{
+				Runtime.Log("contract was deployed earlier: total_supply["+total_supply.Length+"] = "+total_supply.AsBigInteger());
+				return false;
+			}
+			byte[] owner = GetOwner();
+			if (owner.Length != 0)
+			{
+				Runtime.Log("contract was deployed earlier: owner["+owner.Length+"] = '"+owner.AsString()+"'");
+				return false;
+			}
+			Storage.Put(Storage.CurrentContext, "owner", Owner);
 			Storage.Put(Storage.CurrentContext, TOTAL_SUPPLY_KEY, 0);
+			Runtime.Log("deployed successfully!");
 			return true;
 		}
 
 		// Called by the contract owner from a trusted node after another blockchain transfer.
 		private static bool MintTokens(byte[] toAddress, BigInteger tokenAmount, byte[] fromBlockchain, byte[] fromTxId)
 		{
-			byte[] owner = GetOwner();
-			if (!Runtime.CheckWitness(owner))
+			if (!IsOwner()) // only contract owner can mint tokens
 				return false;
-			
-			byte[] sender = GetSender();
-			// contribute asset is not neo
-			if (sender.Length == 0)
-			{
-				return false;
-			}
 			
 			BigInteger newBalance = BalanceOf(toAddress) + tokenAmount;
 			Storage.Put(Storage.CurrentContext, toAddress, newBalance);
@@ -135,13 +157,15 @@ public class NeoContractIco: SmartContract
 			Minted(toAddress, tokenAmount, fromBlockchain, fromTxId);
 			return true;
 		}
-		private static bool Exchange(BigInteger tokenAmount, byte[] blockchainName, byte[] receiver)
+		private static bool Exchange(byte[] from, BigInteger tokenAmount, byte[] blockchainName, byte[] receiver)
 		{
-			byte[] sender = GetSender();
-			if (!_tryReduceBalance(sender, tokenAmount))
+			if (!Runtime.CheckWitness(from))
+				return false; // only tokens owner can exchange tokens for himself
+			
+			if (!_tryReduceBalance(from, tokenAmount))
 				return false;
 			
-			Exchanged(tokenAmount, blockchainName, receiver);
+			Exchanged(from, tokenAmount, blockchainName, receiver);
 			
 			return true;
 		}
@@ -196,41 +220,14 @@ public class NeoContractIco: SmartContract
 		{
 			return Storage.Get(Storage.CurrentContext, "owner");
 		}
-		// check whether asset is neo and get sender script hash
-		private static byte[] GetSender()
+		private static bool IsOwner()
 		{
-			Transaction tx = (Transaction)ExecutionEngine.ScriptContainer;
-			TransactionOutput[] reference = tx.GetReferences();
-			// you can choice refund or not refund
-			foreach (TransactionOutput output in reference)
-			{
-				if (output.AssetId == neo_asset_id)
-					return output.ScriptHash;
-			}
-			return new byte[]{};
+			return Runtime.CheckWitness(GetOwner());
 		}
 
 		// get smart contract script hash
 		private static byte[] GetReceiver()
 		{
 			return ExecutionEngine.ExecutingScriptHash;
-		}
-
-		// get all you contribute neo amount
-		private static ulong GetContributeValue()
-		{
-			Transaction tx = (Transaction)ExecutionEngine.ScriptContainer;
-			TransactionOutput[] outputs = tx.GetOutputs();
-			ulong value = 0;
-			// get the total amount of Neo
-			// 获取转入智能合约地址的Neo总量
-			foreach (TransactionOutput output in outputs)
-			{
-				if (output.ScriptHash == GetReceiver() && output.AssetId == neo_asset_id)
-				{
-					value += (ulong)output.Value;
-				}
-			}
-			return value;
 		}
 }
