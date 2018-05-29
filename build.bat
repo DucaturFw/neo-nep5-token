@@ -6,4 +6,4 @@ pushd ..\ico-avm
 dotnet neon.dll NeoContractIco.dll
 if %errorlevel% neq 0 exit /b %errorlevel%
 popd
-xcopy ..\ico-avm\NeoContractIco.avm .\output\
+xcopy /Y ..\ico-avm\NeoContractIco.avm .\output\
