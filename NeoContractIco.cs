@@ -146,52 +146,87 @@ public class NeoContractIco: SmartContract
 		// Called by the contract owner from a trusted node after another blockchain transfer.
 		private static bool MintTokens(byte[] toAddress, BigInteger tokenAmount, byte[] fromBlockchain, byte[] fromTxId)
 		{
+			Runtime.Log("MintTokens(): " + tokenAmount + " for " + toAddress.AsString() + " source: ["+fromBlockchain.AsBigInteger()+"] " + fromTxId.AsString());
 			if (!IsOwner()) // only contract owner can mint tokens
+			{
+				Runtime.Log("not owner! only owner can mint");
 				return false;
+			}
 			
 			BigInteger newBalance = BalanceOf(toAddress) + tokenAmount;
+			Runtime.Log("new balance: " + newBalance);
 			Storage.Put(Storage.CurrentContext, toAddress, newBalance);
 			
 			BigInteger totalSupply = TotalSupply();
+			Runtime.Log("total supply: " + totalSupply);
 			Storage.Put(Storage.CurrentContext, TOTAL_SUPPLY_KEY, tokenAmount + totalSupply);
 			Minted(toAddress, tokenAmount, fromBlockchain, fromTxId);
+			Runtime.Log("minted successfully!");
 			return true;
 		}
 		private static bool Exchange(byte[] from, BigInteger tokenAmount, byte[] blockchainName, byte[] receiver)
 		{
+			Runtime.Log("Exchange(): " + tokenAmount + " from " + from.AsString() + " to [" + blockchainName.AsBigInteger() + "] " + receiver);
 			if (!Runtime.CheckWitness(from))
+			{
+				Runtime.Log("not from address! only from can exchange: " + from.AsString());
 				return false; // only tokens owner can exchange tokens for himself
+			}
 			
 			if (!_tryReduceBalance(from, tokenAmount))
+			{
+				Runtime.Log("not enough tokens!");
 				return false;
+			}
 			
 			Exchanged(from, tokenAmount, blockchainName, receiver);
+			
+			Runtime.Log("exchanged successfully!");
 			
 			return true;
 		}
 
 		// get the total token supply
-		// 获取已发行token总量
 		public static BigInteger TotalSupply()
 		{
 			return Storage.Get(Storage.CurrentContext, TOTAL_SUPPLY_KEY).AsBigInteger();
 		}
 
 		// function that is always called when someone wants to transfer tokens.
-		// 流转token调用
 		public static bool Transfer(byte[] from, byte[] to, BigInteger value)
 		{
-			if (value <= 0) return false;
-			if (!Runtime.CheckWitness(from)) return false;
-			if (to.Length != 20) return false;
-			
-			if (from == to) return true;
-			if (!_tryReduceBalance(from, value))
+			Runtime.Log("Transfer(): " + value + " from " + from + " to " + to);
+
+			if (value <= 0)
+			{
+				Runtime.Log("value is too small!");
 				return false;
+			}
+			if (!Runtime.CheckWitness(from))
+			{
+				Runtime.Log("'from' address is not authorized!");
+				return false;
+			}
+			if (to.Length != 20)
+			{
+				Runtime.Log("'to' address is not 20 chars long (probably wallet address or smth)");
+				return false;
+			}
+			if (from == to)
+			{
+				Runtime.Log("sending to myself! (successfully)");
+				return true;
+			}
+			if (!_tryReduceBalance(from, value))
+			{
+				Runtime.Log("not enough tokens!");
+				return false;
+			}
 			
 			BigInteger to_value = Storage.Get(Storage.CurrentContext, to).AsBigInteger();
 			Storage.Put(Storage.CurrentContext, to, to_value + value);
 			Transferred(from, to, value);
+			Runtime.Log("transferred successfully!");
 			return true;
 		}
 		private static bool _tryReduceBalance(byte[] from, BigInteger amount)
@@ -223,11 +258,5 @@ public class NeoContractIco: SmartContract
 		private static bool IsOwner()
 		{
 			return Runtime.CheckWitness(GetOwner());
-		}
-
-		// get smart contract script hash
-		private static byte[] GetReceiver()
-		{
-			return ExecutionEngine.ExecutingScriptHash;
 		}
 }
