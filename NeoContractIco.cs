@@ -113,6 +113,7 @@ public class NeoContractIco: SmartContract
 					
 					return MintTokens(toAddress, tokenAmount, fromBlockchain, fromTxId);
 				}
+
 				Runtime.Log("operation not found: "+operation);
 				return false;
 			}
@@ -139,15 +140,21 @@ public class NeoContractIco: SmartContract
 			}
 			Storage.Put(Storage.CurrentContext, "owner", Owner);
 			Storage.Put(Storage.CurrentContext, TOTAL_SUPPLY_KEY, 0);
-			Runtime.Log("deployed successfully!");
+			Runtime.Log("deployed successfully! ");
 			return true;
 		}
-
+		
 		// Called by the contract owner from a trusted node after another blockchain transfer.
 		private static bool MintTokens(byte[] toAddress, BigInteger tokenAmount, byte[] fromBlockchain, byte[] fromTxId)
 		{
-			Runtime.Log("MintTokens(): " + tokenAmount + " for " + toAddress.AsString() + " source: ["+fromBlockchain.AsBigInteger()+"] " + fromTxId.AsString());
-			if (!IsOwner()) // only contract owner can mint tokens
+			string s = "";
+			s += s + "MintTokens(): " + tokenAmount.ToByteArray().AsString();
+			s += " for " + toAddress.AsString();
+			s += " source: ["+fromBlockchain.AsString();
+			s += "] " + fromTxId.AsString();
+			Runtime.Log(s);
+
+			if (!Runtime.CheckWitness(GetOwner())) // only contract owner can mint tokens
 			{
 				Runtime.Log("not owner! only owner can mint");
 				return false;
@@ -254,9 +261,5 @@ public class NeoContractIco: SmartContract
 		private static byte[] GetOwner()
 		{
 			return Storage.Get(Storage.CurrentContext, "owner");
-		}
-		private static bool IsOwner()
-		{
-			return Runtime.CheckWitness(GetOwner());
 		}
 }
