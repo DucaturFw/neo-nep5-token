@@ -29,7 +29,7 @@ public class NeoContractIco: SmartContract
 		public static event MyAction<byte[], byte[], BigInteger> Transferred;
 
 		[DisplayName("exchange")]
-		public static event MyAction<byte[], BigInteger, byte[], byte[]> Exchanged; // from, tokenAmount, blockchainName, receiver
+		public static event MyAction<byte[], BigInteger, string, string> Exchanged; // from, tokenAmount, blockchainName, receiver
 		
 		[DisplayName("mint")]
 		public static event MyAction<byte[], BigInteger, byte[], byte[]> Minted; //(toAddress, tokenAmount, fromBlockchain, fromTxId)
@@ -93,8 +93,8 @@ public class NeoContractIco: SmartContract
 					
 					byte[] from = (byte[])args[0];
 					BigInteger tokenAmount = (BigInteger)args[1];
-					byte[] blockchainName = (byte[])args[2];
-					byte[] receiver = (byte[])args[3];
+					string blockchainName = (string)args[2];
+					string receiver = (string)args[3];
 
 					return Exchange(from, tokenAmount, blockchainName, receiver);
 				}
@@ -171,7 +171,7 @@ public class NeoContractIco: SmartContract
 			// Runtime.Log("minted successfully!");
 			return true;
 		}
-		private static bool Exchange(byte[] from, BigInteger tokenAmount, byte[] blockchainName, byte[] receiver)
+		private static bool Exchange(byte[] from, BigInteger tokenAmount, string blockchainName, string receiver)
 		{
 			// Runtime.Log("Exchange(): " + tokenAmount + " from " + from.AsString() + " to [" + blockchainName.AsBigInteger() + "] " + receiver);
 			if (!Runtime.CheckWitness(from))
