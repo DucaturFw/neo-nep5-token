@@ -51,7 +51,7 @@ public class NeoContractIco: SmartContract
 			}
 			else if (Runtime.Trigger == TriggerType.Application)
 			{
-				Runtime.Log(operation);
+				// Runtime.Log(operation);
 				if (operation == "deploy") return Deploy();
 				if (operation == "totalSupply") return TotalSupply();
 				if (operation == "name") return Name();
@@ -62,7 +62,7 @@ public class NeoContractIco: SmartContract
 				{
 					if (args.Length != 3)
 					{
-						Runtime.Log("insufficient arguments length! "+args.Length);
+						// Runtime.Log("insufficient arguments length! "+args.Length);
 						return false;
 					}
 					
@@ -75,7 +75,7 @@ public class NeoContractIco: SmartContract
 				{
 					if (args.Length != 1)
 					{
-						Runtime.Log("insufficient arguments length! "+args.Length);
+						// Runtime.Log("insufficient arguments length! "+args.Length);
 						return 0;
 					}
 					
@@ -87,7 +87,7 @@ public class NeoContractIco: SmartContract
 				{
 					if (args.Length != 4)
 					{
-						Runtime.Log("insufficient arguments length! "+args.Length);
+						// Runtime.Log("insufficient arguments length! "+args.Length);
 						return false;
 					}
 					
@@ -102,7 +102,7 @@ public class NeoContractIco: SmartContract
 				{
 					if (args.Length != 4)
 					{
-						Runtime.Log("insufficient arguments length! "+args.Length);
+						// Runtime.Log("insufficient arguments length! "+args.Length);
 						return false;
 					}
 					
@@ -114,33 +114,33 @@ public class NeoContractIco: SmartContract
 					return MintTokens(toAddress, tokenAmount, fromBlockchain, fromTxId);
 				}
 
-				Runtime.Log("operation not found: "+operation);
+				// Runtime.Log("operation not found: "+operation);
 				return false;
 			}
-			Runtime.Log("unknown Main() behaviour! "+operation);
+			// Runtime.Log("unknown Main() behaviour! "+operation);
 			return false;
 		}
 
 		// initialization parameters, only once
 		public static bool Deploy()
 		{
-			Runtime.Log("deploying contract...");
+			// Runtime.Log("deploying contract...");
 			byte[] total_supply = Storage.Get(Storage.CurrentContext, TOTAL_SUPPLY_KEY);
 			// Runtime.Log($"curent total_supply[{total_supply.Length}]: {total_supply.AsBigInteger()}");
 			if (total_supply.Length != 0)
 			{
-				Runtime.Log("contract was deployed earlier: total_supply["+total_supply.Length+"] = "+total_supply.AsBigInteger());
+				// Runtime.Log("contract was deployed earlier: total_supply["+total_supply.Length+"] = "+total_supply.AsBigInteger());
 				return false;
 			}
 			byte[] owner = GetOwner();
 			if (owner.Length != 0)
 			{
-				Runtime.Log("contract was deployed earlier: owner["+owner.Length+"] = '"+owner.AsString()+"'");
+				// Runtime.Log("contract was deployed earlier: owner["+owner.Length+"] = '"+owner.AsString()+"'");
 				return false;
 			}
 			Storage.Put(Storage.CurrentContext, "owner", Owner);
 			Storage.Put(Storage.CurrentContext, TOTAL_SUPPLY_KEY, 0);
-			Runtime.Log("deployed successfully! ");
+			// Runtime.Log("deployed successfully! ");
 			return true;
 		}
 		
@@ -152,43 +152,43 @@ public class NeoContractIco: SmartContract
 			s += " for " + toAddress.AsString();
 			s += " source: ["+fromBlockchain.AsString();
 			s += "] " + fromTxId.AsString();
-			Runtime.Log(s);
+			// Runtime.Log(s);
 
 			if (!Runtime.CheckWitness(GetOwner())) // only contract owner can mint tokens
 			{
-				Runtime.Log("not owner! only owner can mint");
+				// Runtime.Log("not owner! only owner can mint");
 				return false;
 			}
 			
 			BigInteger newBalance = BalanceOf(toAddress) + tokenAmount;
-			Runtime.Log("new balance: " + newBalance);
+			// Runtime.Log("new balance: " + newBalance);
 			Storage.Put(Storage.CurrentContext, toAddress, newBalance);
 			
 			BigInteger totalSupply = TotalSupply();
-			Runtime.Log("total supply: " + totalSupply);
+			// Runtime.Log("total supply: " + totalSupply);
 			Storage.Put(Storage.CurrentContext, TOTAL_SUPPLY_KEY, tokenAmount + totalSupply);
 			Minted(toAddress, tokenAmount, fromBlockchain, fromTxId);
-			Runtime.Log("minted successfully!");
+			// Runtime.Log("minted successfully!");
 			return true;
 		}
 		private static bool Exchange(byte[] from, BigInteger tokenAmount, byte[] blockchainName, byte[] receiver)
 		{
-			Runtime.Log("Exchange(): " + tokenAmount + " from " + from.AsString() + " to [" + blockchainName.AsBigInteger() + "] " + receiver);
+			// Runtime.Log("Exchange(): " + tokenAmount + " from " + from.AsString() + " to [" + blockchainName.AsBigInteger() + "] " + receiver);
 			if (!Runtime.CheckWitness(from))
 			{
-				Runtime.Log("not from address! only from can exchange: " + from.AsString());
+				// Runtime.Log("not from address! only from can exchange: " + from.AsString());
 				return false; // only tokens owner can exchange tokens for himself
 			}
 			
 			if (!_tryReduceBalance(from, tokenAmount))
 			{
-				Runtime.Log("not enough tokens!");
+				// Runtime.Log("not enough tokens!");
 				return false;
 			}
 			
 			Exchanged(from, tokenAmount, blockchainName, receiver);
 			
-			Runtime.Log("exchanged successfully!");
+			// Runtime.Log("exchanged successfully!");
 			
 			return true;
 		}
@@ -202,38 +202,38 @@ public class NeoContractIco: SmartContract
 		// function that is always called when someone wants to transfer tokens.
 		public static bool Transfer(byte[] from, byte[] to, BigInteger value)
 		{
-			Runtime.Log("Transfer(): " + value + " from " + from + " to " + to);
+			// Runtime.Log("Transfer(): " + value + " from " + from + " to " + to);
 
 			if (value <= 0)
 			{
-				Runtime.Log("value is too small!");
+				// Runtime.Log("value is too small!");
 				return false;
 			}
 			if (!Runtime.CheckWitness(from))
 			{
-				Runtime.Log("'from' address is not authorized!");
+				// Runtime.Log("'from' address is not authorized!");
 				return false;
 			}
 			if (to.Length != 20)
 			{
-				Runtime.Log("'to' address is not 20 chars long (probably wallet address or smth)");
+				// Runtime.Log("'to' address is not 20 chars long (probably wallet address or smth)");
 				return false;
 			}
 			if (from == to)
 			{
-				Runtime.Log("sending to myself! (successfully)");
+				// Runtime.Log("sending to myself! (successfully)");
 				return true;
 			}
 			if (!_tryReduceBalance(from, value))
 			{
-				Runtime.Log("not enough tokens!");
+				// Runtime.Log("not enough tokens!");
 				return false;
 			}
 			
 			BigInteger to_value = Storage.Get(Storage.CurrentContext, to).AsBigInteger();
 			Storage.Put(Storage.CurrentContext, to, to_value + value);
 			Transferred(from, to, value);
-			Runtime.Log("transferred successfully!");
+			// Runtime.Log("transferred successfully!");
 			return true;
 		}
 		private static bool _tryReduceBalance(byte[] from, BigInteger amount)
