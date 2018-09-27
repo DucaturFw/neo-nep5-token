@@ -61,6 +61,14 @@ public class NeoContractIco: SmartContract
 			if (operation == "symbol") return Symbol(tokenName);
 			if (operation == "decimals") return Decimals(tokenName);
 			if (operation == "owner") return GetContractOwner();
+			if (operation == "createToken")
+			{
+				string name = (string)args[0];
+				string symbol = (string)args[1];
+				byte[] owner = (byte[])args[2];
+				byte decimals = (byte)args[3];
+				return CreateToken(tokenName, name, symbol, owner, decimals);
+			}
 			if (operation == "transfer")
 			{
 				if (args.Length != 3)
